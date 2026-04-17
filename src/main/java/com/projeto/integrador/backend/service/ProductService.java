@@ -3,11 +3,14 @@ package com.projeto.integrador.backend.service;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.projeto.integrador.backend.domain.entity.Product;
 import com.projeto.integrador.backend.domain.entity.ProductSize;
+import com.projeto.integrador.backend.dto.PageResponse;
 import com.projeto.integrador.backend.dto.product.ProductRequest;
 import com.projeto.integrador.backend.dto.product.ProductResponse;
 import com.projeto.integrador.backend.dto.product.ProductSizeResponse;
@@ -27,6 +30,27 @@ public class ProductService {
         return productRepository.findByActiveTrue().stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    public PageResponse<ProductResponse> getActiveProducts(Pageable pageable) {
+        Page<ProductResponse> page = productRepository.findByActiveTrue(pageable)
+                .map(this::toResponse);
+        return new PageResponse<>(
+                page.getContent(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isLast()
+        );
+    }
+
+    @Transactional
+    public ProductResponse updateProductImage(UUID id, String imageUrl) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado: " + id));
+        product.setImageUrl(imageUrl);
+        return toResponse(productRepository.save(product));
     }
 
     public ProductResponse getProductById(UUID id) {
