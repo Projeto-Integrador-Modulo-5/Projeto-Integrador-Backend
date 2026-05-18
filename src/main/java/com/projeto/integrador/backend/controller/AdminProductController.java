@@ -1,9 +1,13 @@
 package com.projeto.integrador.backend.controller;
 
+import com.projeto.integrador.backend.dto.PageResponse;
 import com.projeto.integrador.backend.dto.product.ProductRequest;
 import com.projeto.integrador.backend.dto.product.ProductResponse;
 import com.projeto.integrador.backend.service.FileUploadService;
 import com.projeto.integrador.backend.service.ProductService;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -27,6 +31,15 @@ public class AdminProductController {
     public AdminProductController(ProductService productService, FileUploadService fileUploadService) {
         this.productService    = productService;
         this.fileUploadService = fileUploadService;
+    }
+
+    @Operation(summary = "Listar todos os produtos (ativos e inativos)")
+    @GetMapping
+    public ResponseEntity<PageResponse<ProductResponse>> listProducts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
+        return ResponseEntity.ok(productService.getAllProducts(pageable));
     }
 
     @Operation(summary = "Criar produto")

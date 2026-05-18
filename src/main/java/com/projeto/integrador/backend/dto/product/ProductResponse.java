@@ -10,6 +10,7 @@ public record ProductResponse(
     String description,
     BigDecimal price,
     String imageUrl,
+    String category,
     boolean active,
     List<ProductSizeResponse> sizes
 ) {}

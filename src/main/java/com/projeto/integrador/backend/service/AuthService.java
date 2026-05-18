@@ -9,6 +9,8 @@ import com.projeto.integrador.backend.exception.BusinessException;
 import com.projeto.integrador.backend.exception.UnauthorizedException;
 import com.projeto.integrador.backend.repository.UserRepository;
 import com.projeto.integrador.backend.security.JwtTokenProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,6 +23,8 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     /** TTL do refresh token: 7 dias em milissegundos */
     private static final long REFRESH_TOKEN_TTL_MS = 7L * 24 * 60 * 60 * 1000;
@@ -78,7 +82,13 @@ public class AuthService {
      */
     public AuthResponse refresh(String refreshToken) {
         String redisKey = "refresh:" + refreshToken;
-        String userId   = redisTemplate.opsForValue().get(redisKey);
+        String userId;
+        try {
+            userId = redisTemplate.opsForValue().get(redisKey);
+        } catch (Exception e) {
+            log.warn("[Auth] Redis indisponível no refresh: {}", e.getMessage());
+            throw new UnauthorizedException("Serviço de sessão temporariamente indisponível");
+        }
 
         if (userId == null) {
             throw new UnauthorizedException("Refresh token inválido ou expirado");
@@ -88,7 +98,7 @@ public class AuthService {
                 .orElseThrow(() -> new UnauthorizedException("Usuário não encontrado"));
 
         // Rotaciona: apaga o antigo e gera um novo
-        redisTemplate.delete(redisKey);
+        try { redisTemplate.delete(redisKey); } catch (Exception ignored) {}
         String newRefreshToken = createRefreshToken(userId);
         String newAccessToken  = jwtTokenProvider.generateToken(user);
 
@@ -98,21 +108,34 @@ public class AuthService {
 
     /**
      * Invalida access token (blacklist) e, se fornecido, apaga o refresh token.
+     * Se o Redis estiver fora do ar, o token expira naturalmente pelo TTL do JWT.
      */
     public void logout(String accessToken, String refreshToken) {
         long ttl = jwtTokenProvider.getExpiration();
-        redisTemplate.opsForValue().set("blacklist:" + accessToken, "1", ttl, TimeUnit.MILLISECONDS);
-
+        try {
+            redisTemplate.opsForValue().set("blacklist:" + accessToken, "1", ttl, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            log.warn("[Auth] Redis indisponível no logout (blacklist ignorada): {}", e.getMessage());
+        }
         if (refreshToken != null && !refreshToken.isBlank()) {
-            redisTemplate.delete("refresh:" + refreshToken);
+            try { redisTemplate.delete("refresh:" + refreshToken); } catch (Exception ignored) {}
         }
     }
 
     // ── privado ──────────────────────────────────────────────────────────────
 
+    /**
+     * Cria refresh token e persiste no Redis.
+     * Se Redis estiver indisponível, retorna token gerado sem persistência
+     * (nesse caso o /auth/refresh não funcionará até o Redis voltar).
+     */
     private String createRefreshToken(String userId) {
         String token = UUID.randomUUID().toString();
-        redisTemplate.opsForValue().set("refresh:" + token, userId, REFRESH_TOKEN_TTL_MS, TimeUnit.MILLISECONDS);
+        try {
+            redisTemplate.opsForValue().set("refresh:" + token, userId, REFRESH_TOKEN_TTL_MS, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            log.warn("[Auth] Redis indisponível — refresh token não persistido para userId {}: {}", userId, e.getMessage());
+        }
         return token;
     }
 }

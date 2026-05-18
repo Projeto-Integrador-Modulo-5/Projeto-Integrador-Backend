@@ -12,5 +12,6 @@ public record ProductRequest(
     String description,
     @NotNull @Positive BigDecimal price,
     String imageUrl,
+    String category,
     @NotEmpty List<ProductSizeRequest> sizes
 ) {}

@@ -4,6 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -18,6 +20,8 @@ import java.io.IOException;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsServiceImpl userDetailsService;
@@ -40,15 +44,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = extractToken(request);
 
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
-            // Verifica blacklist de logout
-            Boolean isBlacklisted = redisTemplate.hasKey("blacklist:" + token);
-            if (Boolean.TRUE.equals(isBlacklisted)) {
-                filterChain.doFilter(request, response);
-                return;
+            // Verifica blacklist de logout — resiliente a Redis indisponível
+            try {
+                Boolean isBlacklisted = redisTemplate.hasKey("blacklist:" + token);
+                if (Boolean.TRUE.equals(isBlacklisted)) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+            } catch (Exception redisEx) {
+                // Redis fora do ar: assume token válido e segue
+                log.warn("[JWT] Redis indisponível, blacklist ignorada: {}", redisEx.getMessage());
             }
 
             String username = jwtTokenProvider.getUsername(token);
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            UserDetails userDetails;
+            try {
+                userDetails = userDetailsService.loadUserByUsername(username);
+            } catch (Exception e) {
+                // Usuário não encontrado no banco (ex: conta deletada após emissão do token)
+                // Ignora silenciosamente — o request prossegue sem autenticação
+                // e endpoints protegidos retornarão 401 normalmente
+                log.warn("[JWT] Usuário '{}' não encontrado ao validar token: {}", username, e.getMessage());
+                filterChain.doFilter(request, response);
+                return;
+            }
 
             UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());

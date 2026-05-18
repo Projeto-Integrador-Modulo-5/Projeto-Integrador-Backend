@@ -12,5 +12,7 @@ public record OrderResponse(
     String trackingCode,
     LocalDateTime createdAt,
     LocalDateTime updatedAt,
-    List<OrderItemResponse> items
+    List<OrderItemResponse> items,
+    String userName,
+    String userEmail
 ) {}

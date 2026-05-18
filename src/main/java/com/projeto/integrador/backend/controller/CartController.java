@@ -42,8 +42,9 @@ public class CartController {
 
     @DeleteMapping("/items/{productId}")
     public ResponseEntity<CartResponse> removeItem(@AuthenticationPrincipal User user,
-                                                    @PathVariable UUID productId) {
-        return ResponseEntity.ok(cartService.removeItem(user.getId(), productId));
+                                                    @PathVariable UUID productId,
+                                                    @RequestParam String size) {
+        return ResponseEntity.ok(cartService.removeItem(user.getId(), productId, size));
     }
 
     @DeleteMapping

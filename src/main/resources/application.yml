@@ -29,12 +29,17 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
-  # ── Kafka ───────────────────────────────────────────
+  # ── Kafka Cluster (3 brokers, 3 partições, RF=3) ────
   kafka:
-    bootstrap-servers: ${KAFKA_HOST}:${KAFKA_PORT}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092,localhost:29093,localhost:29094}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all                    # aguarda confirmação de todos os ISRs
+      retries: 3
+      properties:
+        enable.idempotence: true   # garante exactly-once por partição
+        max.in.flight.requests.per.connection: 5
     consumer:
       group-id: backend-group
       auto-offset-reset: earliest

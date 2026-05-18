@@ -26,11 +26,15 @@ public class ProductController {
     }
 
     @Operation(summary = "Listar produtos ativos com paginação",
-               description = "Parâmetros: page (0-based), size (default 12), sort (ex: name,asc)")
+               description = "Parâmetros: page (0-based), size (default 12), sort, search (busca por nome/descrição/categoria)")
     @GetMapping
     public ResponseEntity<PageResponse<ProductResponse>> listProducts(
             @PageableDefault(size = 12, sort = "name", direction = Sort.Direction.ASC)
-            @Parameter(hidden = true) Pageable pageable) {
+            @Parameter(hidden = true) Pageable pageable,
+            @RequestParam(required = false) String search) {
+        if (search != null && !search.isBlank()) {
+            return ResponseEntity.ok(productService.searchActiveProducts(search.trim(), pageable));
+        }
         return ResponseEntity.ok(productService.getActiveProducts(pageable));
     }
 
