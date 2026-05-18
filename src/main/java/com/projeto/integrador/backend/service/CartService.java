@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -26,6 +28,9 @@ public class CartService {
 
     private static final Logger log = LoggerFactory.getLogger(CartService.class);
     private static final long CART_TTL_DAYS = 7;
+
+    /** Fallback em memória quando o Redis não está disponível */
+    private final Map<UUID, List<CartItemData>> memCart = new ConcurrentHashMap<>();
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -43,22 +48,27 @@ public class CartService {
     }
 
     private List<CartItemData> loadCart(UUID userId) {
-        String json = redisTemplate.opsForValue().get(cartKey(userId));
-        if (json == null || json.isBlank()) return new ArrayList<>();
         try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
+            String json = redisTemplate.opsForValue().get(cartKey(userId));
+            if (json == null || json.isBlank()) {
+                return new ArrayList<>(memCart.getOrDefault(userId, new ArrayList<>()));
+            }
+            List<CartItemData> items = objectMapper.readValue(json, new TypeReference<>() {});
+            memCart.put(userId, new ArrayList<>(items)); // sincroniza memória
+            return items;
         } catch (Exception e) {
-            log.error("Erro ao deserializar carrinho", e);
-            return new ArrayList<>();
+            log.warn("[Cart] Redis indisponível, usando fallback em memória para {}: {}", userId, e.getMessage());
+            return new ArrayList<>(memCart.getOrDefault(userId, new ArrayList<>()));
         }
     }
 
     private void saveCart(UUID userId, List<CartItemData> items) {
+        memCart.put(userId, new ArrayList<>(items)); // salva em memória primeiro
         try {
             String json = objectMapper.writeValueAsString(items);
             redisTemplate.opsForValue().set(cartKey(userId), json, CART_TTL_DAYS, TimeUnit.DAYS);
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao salvar carrinho", e);
+            log.warn("[Cart] Redis indisponível, carrinho salvo apenas em memória para {}: {}", userId, e.getMessage());
         }
     }
 
@@ -114,15 +124,20 @@ public class CartService {
         return toCartResponse(items);
     }
 
-    public CartResponse removeItem(UUID userId, UUID productId) {
+    public CartResponse removeItem(UUID userId, UUID productId, String size) {
         List<CartItemData> items = loadCart(userId);
-        items.removeIf(item -> item.productId().equals(productId));
+        items.removeIf(item -> item.productId().equals(productId) && item.size().equalsIgnoreCase(size));
         saveCart(userId, items);
         return toCartResponse(items);
     }
 
     public void clearCart(UUID userId) {
-        redisTemplate.delete(cartKey(userId));
+        memCart.remove(userId);
+        try {
+            redisTemplate.delete(cartKey(userId));
+        } catch (Exception e) {
+            log.warn("[Cart] Redis indisponível no clearCart para {}: {}", userId, e.getMessage());
+        }
     }
 
     private CartResponse toCartResponse(List<CartItemData> items) {

@@ -110,12 +110,14 @@ public class OrderService {
             .map(item -> new OrderItemResponse(
                 item.getProduct().getId(),
                 item.getProduct().getName(),
+                item.getProduct().getImageUrl(),
                 item.getSize().name(),
                 item.getQuantity(),
                 item.getUnitPrice()
             ))
             .toList();
         return new OrderResponse(order.getId(), order.getStatus().name(), order.getTotal(),
-            order.getTrackingCode(), order.getCreatedAt(), order.getUpdatedAt(), items);
+            order.getTrackingCode(), order.getCreatedAt(), order.getUpdatedAt(), items,
+            order.getUser().getName(), order.getUser().getEmail());
     }
 }
