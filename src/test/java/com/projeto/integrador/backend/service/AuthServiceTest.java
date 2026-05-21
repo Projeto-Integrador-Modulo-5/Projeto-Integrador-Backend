@@ -1,5 +1,35 @@
 package com.projeto.integrador.backend.service;
 
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
+
 import com.projeto.integrador.backend.domain.entity.User;
 import com.projeto.integrador.backend.domain.enums.Role;
 import com.projeto.integrador.backend.dto.auth.AuthResponse;
@@ -9,42 +39,26 @@ import com.projeto.integrador.backend.exception.BusinessException;
 import com.projeto.integrador.backend.exception.UnauthorizedException;
 import com.projeto.integrador.backend.repository.UserRepository;
 import com.projeto.integrador.backend.security.JwtTokenProvider;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import org.springframework.test.util.ReflectionTestUtils;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AuthServiceTest {
 
-    @Mock private UserRepository userRepository;
-    @Mock private PasswordEncoder passwordEncoder;
-    @Mock private JwtTokenProvider jwtTokenProvider;
-    @Mock private AuthenticationManager authenticationManager;
-    @Mock private StringRedisTemplate redisTemplate;
-    @Mock private ValueOperations<String, String> valueOps;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private PasswordEncoder passwordEncoder;
+    @Mock
+    private JwtTokenProvider jwtTokenProvider;
+    @Mock
+    private AuthenticationManager authenticationManager;
+    @Mock
+    private StringRedisTemplate redisTemplate;
+    @Mock
+    private ValueOperations<String, String> valueOps;
 
-    @InjectMocks private AuthService authService;
+    @InjectMocks
+    private AuthService authService;
 
     private User user;
 
@@ -81,8 +95,8 @@ class AuthServiceTest {
         when(userRepository.existsByEmail("existing@test.com")).thenReturn(true);
 
         assertThatThrownBy(() -> authService.register(request))
-            .isInstanceOf(BusinessException.class)
-            .hasMessageContaining("Email já cadastrado");
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Email já cadastrado");
     }
 
     // ── login ────────────────────────────────────────────────────────────────
@@ -90,8 +104,8 @@ class AuthServiceTest {
     @Test
     void login_shouldReturnTokensForValidCredentials() {
         LoginRequest request = new LoginRequest("test@test.com", "password123");
-        UsernamePasswordAuthenticationToken authToken =
-            new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(user, null,
+                user.getAuthorities());
 
         when(authenticationManager.authenticate(any())).thenReturn(authToken);
         when(jwtTokenProvider.generateToken(user)).thenReturn("jwt_token");
@@ -128,8 +142,8 @@ class AuthServiceTest {
         when(valueOps.get(anyString())).thenReturn(null);
 
         assertThatThrownBy(() -> authService.refresh("token_invalido"))
-            .isInstanceOf(UnauthorizedException.class)
-            .hasMessageContaining("inválido ou expirado");
+                .isInstanceOf(UnauthorizedException.class)
+                .hasMessageContaining("inválido ou expirado");
     }
 
     @Test
@@ -141,8 +155,8 @@ class AuthServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.refresh(token))
-            .isInstanceOf(UnauthorizedException.class)
-            .hasMessageContaining("Usuário não encontrado");
+                .isInstanceOf(UnauthorizedException.class)
+                .hasMessageContaining("Usuário não encontrado");
     }
 
     // ── logout ───────────────────────────────────────────────────────────────
