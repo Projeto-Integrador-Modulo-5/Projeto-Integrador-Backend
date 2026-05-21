@@ -27,6 +27,9 @@ public class Product {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(length = 100)
+    private String category;
+
     @Column(nullable = false)
     private boolean active = true;
 
@@ -74,6 +77,14 @@ public class Product {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 
     public boolean isActive() {
