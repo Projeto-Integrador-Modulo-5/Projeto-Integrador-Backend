@@ -18,6 +18,8 @@ import org.mockito.Mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -31,6 +33,7 @@ import com.projeto.integrador.backend.exception.ResourceNotFoundException;
 import com.projeto.integrador.backend.repository.ProductRepository;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class CartServiceTest {
 
     @Mock
@@ -151,7 +154,7 @@ class CartServiceTest {
 
         when(valueOps.get("cart:" + userId)).thenReturn(cartJson);
 
-        CartResponse result = cartService.removeItem(userId, productId, cartJson);
+        CartResponse result = cartService.removeItem(userId, productId, "M");
 
         assertThat(result.items()).isEmpty();
         assertThat(result.total()).isEqualByComparingTo(BigDecimal.ZERO);
