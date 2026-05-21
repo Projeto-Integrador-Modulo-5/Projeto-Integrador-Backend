@@ -9,6 +9,7 @@ import com.projeto.integrador.backend.dto.order.UpdateOrderStatusRequest;
 import com.projeto.integrador.backend.exception.ResourceNotFoundException;
 import com.projeto.integrador.backend.messaging.NotificationEvent;
 import com.projeto.integrador.backend.messaging.OrderEventProducer;
+import com.projeto.integrador.backend.repository.NotificationRepository;
 import com.projeto.integrador.backend.repository.OrderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,7 @@ import static org.mockito.Mockito.*;
 class OrderAdminServiceTest {
 
     @Mock private OrderRepository orderRepository;
+    @Mock private NotificationRepository notificationRepository;
     @Mock private OrderEventProducer orderEventProducer;
     @Mock private OrderService orderService;
 
