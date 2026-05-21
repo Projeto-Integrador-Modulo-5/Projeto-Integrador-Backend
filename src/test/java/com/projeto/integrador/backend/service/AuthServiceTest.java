@@ -26,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -50,6 +51,7 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         user = new User("Test User", "test@test.com", "encoded_pass", Role.CUSTOMER);
+        ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
     }
 
